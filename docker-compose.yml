@@ -6,6 +6,8 @@
 #   docker compose run --rm pipeline             # ETL (mês mais recente)
 #   docker compose run --rm pipeline --list      # Listar meses
 #   docker compose down
+#
+# Dados persistentes em E:/project_cnpj (disco E)
 
 services:
   api:
@@ -42,12 +44,16 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/cnpj
+      TEMP_DIR: /app/temp
+      TMPDIR: /app/temp
+      TEMP: /app/temp
+      TMP: /app/temp
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - ./temp:/app/temp
-      - ./parquet:/app/parquet
+      - E:/project_cnpj/temp:/app/temp
+      - E:/project_cnpj/parquet:/app/parquet
 
   postgres:
     image: postgres:16-alpine
@@ -59,7 +65,7 @@ services:
     ports:
       - "5435:5432"
     volumes:
-      - cnpj_pipeline_data:/var/lib/postgresql/data
+      - E:/project_cnpj/postgres:/var/lib/postgresql/data
       - ./initial.sql:/docker-entrypoint-initdb.d/01-initial.sql:ro
       - ./alembic/sql/02-api-indexes.sql:/docker-entrypoint-initdb.d/02-api-indexes.sql:ro
     healthcheck:
@@ -75,14 +81,10 @@ services:
     ports:
       - "6380:6379"
     volumes:
-      - cnpj_redis_data:/data
+      - E:/project_cnpj/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
     command: ["redis-server", "--appendonly", "yes"]
-
-volumes:
-  cnpj_pipeline_data:
-  cnpj_redis_data:

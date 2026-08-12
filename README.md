@@ -42,6 +42,20 @@ Aguarde o Postgres ficar healthy antes do pipeline. Se o container estiver em re
 | URL (apps na máquina) | `postgresql+psycopg://postgres:postgres@localhost:5435/cnpj` |
 | URL (containers) | `postgresql+psycopg://postgres:postgres@postgres:5432/cnpj` |
 
+Dados persistentes no disco **E:** (`docker-compose.yml`):
+
+| Pasta | Conteúdo |
+|-------|----------|
+| `E:/project_cnpj/postgres` | Dados do PostgreSQL |
+| `E:/project_cnpj/redis` | Dados do Redis |
+| `E:/project_cnpj/temp` | Downloads / temporários do pipeline |
+| `E:/project_cnpj/parquet` | Export Parquet (se usar) |
+
+Antes da primeira execução:
+```powershell
+mkdir E:\project_cnpj\postgres, E:\project_cnpj\redis, E:\project_cnpj\temp, E:\project_cnpj\parquet -Force
+```
+
 ### Exemplos de conexão
 
 **psql**
