@@ -1,0 +1,88 @@
+# CNPJ Data Pipeline + API
+#
+# Usage:
+#   docker compose up -d postgres redis          # Infra
+#   docker compose up -d api                     # API FastAPI
+#   docker compose run --rm pipeline             # ETL (mês mais recente)
+#   docker compose run --rm pipeline --list      # Listar meses
+#   docker compose down
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: cnpj-api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/cnpj
+      REDIS_URL: redis://redis:6379/0
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cnpj-pipeline
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/cnpj
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./temp:/app/temp
+      - ./parquet:/app/parquet
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: cnpj-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cnpj
+    ports:
+      - "5435:5432"
+    volumes:
+      - cnpj_pipeline_data:/var/lib/postgresql/data
+      - ./initial.sql:/docker-entrypoint-initdb.d/01-initial.sql:ro
+      - ./alembic/sql/02-api-indexes.sql:/docker-entrypoint-initdb.d/02-api-indexes.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  redis:
+    image: redis:7-alpine
+    container_name: cnpj-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - cnpj_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command: ["redis-server", "--appendonly", "yes"]
+
+volumes:
+  cnpj_pipeline_data:
+  cnpj_redis_data:
